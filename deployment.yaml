@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubernoisy
+  namespace: kubernoisy
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    kubernetes.io/bootstrapping: rbac-defaults
+  name: kubernoisy
+  namespace: kubernoisy
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - endpoints
+      - services
+    verbs:
+      - create
+      - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  annotations:
+    rbac.authorization.kubernetes.io/autoupdate: "true"
+  labels:
+    kubernetes.io/bootstrapping: rbac-defaults
+  name: kubernoisy
+  namespace: kubernoisy
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: kubernoisy
+subjects:
+  - kind: ServiceAccount
+    name: kubernoisy
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubernoisy
+  namespace: kubernoisy
+  annotations:
+    prometheus.io/port: "9696"
+    prometheus.io/scrape: "true"
+spec:
+  selector:
+    app: kubernoisy
+  ports:
+    - name: metrics
+      port: 9696
+      protocol: TCP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubernoisy
+  namespace: kubernoisy
+  labels:
+    app: kubernoisy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kubernoisy
+  template:
+    metadata:
+      labels:
+        app: kubernoisy
+    spec:
+      serviceAccountName: kubernoisy
+      containers:
+        - name: kubernoisy
+          image: chrisohaver/kubernoisy:latest
+          imagePullPolicy: Always
+          args: ["-namespace","kubernoisy"]
