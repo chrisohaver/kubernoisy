@@ -1,3 +1,5 @@
+# kubernoisy
+
 kubernoisy is a testing tool that creates/destroys kubernetes objects to simulate "churn" in a cluster. 
 It also verifies creations and deletions by querying DNS records.
 
@@ -22,8 +24,6 @@ Usage of ./kubernoisy:
 
 ### Metrics
 
-* kubernoisy_action_count_total{"object", "action": Counter of object actions.
-
-* kubernoisy_validation_fail_count_total{"action": Counter of validation failures
-
-* kubernoisy_validation_duration_seconds{"action": Delay to reflect in DNS record
+* *kubernoisy_action_count_total{object, action}*: Counter of object actions.
+* *kubernoisy_validation_fail_count_total{action}*: Counter of validation failures
+* *kubernoisy_validation_duration_seconds{action}*: Delay to reflect in DNS record
