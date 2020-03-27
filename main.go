@@ -88,42 +88,52 @@ func main() {
 				// generate unique name
 				rando := "kubernoisy-" + RandStringBytes(18)
 
+				// create pod
+				pod := &v1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      rando,
+						Namespace: namespace,
+						Labels:    map[string]string{"app": rando},
+					},
+					Spec: v1.PodSpec{
+						Hostname: "pod",
+						Containers: []v1.Container{{
+							Name:  rando,
+							Image: "gcr.io/google_containers/pause:3.2",
+							Ports: []v1.ContainerPort{{Name: "kubernoisy", ContainerPort: 1234}},
+						}},
+					},
+				}
+				pod, err := kapi.CoreV1().Pods(namespace).Create(pod)
+				if err != nil {
+					log.Printf("could not create pod %v.%v: %v", rando, namespace, err)
+				} else {
+					OperationCount.WithLabelValues("pod", "add").Inc()
+				}
+
 				// create headless service
 				svc := &v1.Service{
 					ObjectMeta: metav1.ObjectMeta{Name: rando, Namespace: namespace},
 					Spec: v1.ServiceSpec{
-						Ports:     []v1.ServicePort{{Name: "http", Port: 80}},
+						Ports:     []v1.ServicePort{{Name: "kubernoisy", Port: 1234}},
 						ClusterIP: v1.ClusterIPNone,
 						Type:      v1.ServiceTypeClusterIP,
+						Selector:  map[string]string{"app": rando},
 					},
 				}
-				svc, err := kapi.CoreV1().Services(namespace).Create(svc)
+				svc, err = kapi.CoreV1().Services(namespace).Create(svc)
 				if err != nil {
 					log.Printf("could not create service %v.%v: %v", rando, namespace, err)
+				} else {
+					OperationCount.WithLabelValues("service", "add").Inc()
 				}
-				OperationCount.WithLabelValues("service", "add").Inc()
-
-				// create endpoints
-				ip := "1.2.3.4"
-				eps := &v1.Endpoints{
-					ObjectMeta: metav1.ObjectMeta{Name: rando, Namespace: namespace},
-					Subsets: []v1.EndpointSubset{{
-						Addresses: []v1.EndpointAddress{{IP: ip, Hostname: "test"}},
-						Ports:     []v1.EndpointPort{{Name: "http", Port: 80}},
-					}},
-				}
-				eps, err = kapi.CoreV1().Endpoints(namespace).Create(eps)
-				if err != nil {
-					debugf("could not create endpoints %v.%v: %v", rando, namespace, err)
-				}
-				OperationCount.WithLabelValues("endpoints", "add").Inc()
 
 				// verify via DNS in loop with timeout
 				verified := false
 				var elapsed time.Duration
 				for start := time.Now(); time.Since(start) < timeout; {
 					ips, err := net.LookupIP(rando)
-					if err == nil && len(ips) > 0 && ips[0].String() == ip {
+					if err == nil && len(ips) > 0 {
 						verified = true
 						break
 					}
@@ -136,12 +146,21 @@ func main() {
 					ValidationDuration.WithLabelValues("add").Observe(elapsed.Seconds())
 				}
 
-				// delete headless service and (implicitly) endpoints
+				// delete pod
+				err = kapi.CoreV1().Pods(namespace).Delete(rando, &metav1.DeleteOptions{})
+				if err != nil {
+					debugf("could not delete pod pod.%v.%v: %v", rando, namespace, err)
+				} else {
+					OperationCount.WithLabelValues("pod", "delete").Inc()
+				}
+
+				// delete headless service
 				err = kapi.CoreV1().Services(namespace).Delete(rando, &metav1.DeleteOptions{})
 				if err != nil {
 					debugf("could not delete service %v.%v: %v", rando, namespace, err)
+				} else {
+					OperationCount.WithLabelValues("service", "delete").Inc()
 				}
-				OperationCount.WithLabelValues("service", "delete").Inc()
 
 				// verify via DNS in loop with timeout
 				verified = false
