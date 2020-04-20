@@ -22,7 +22,7 @@ import (
 )
 
 var (
-	ops int
+	ops float64
 
 	timeout   time.Duration
 	verbose   bool
@@ -50,10 +50,10 @@ var (
 )
 
 func main() {
-	flag.IntVar(&ops, "ops", 1, "Operations per second")
+	flag.Float64Var(&ops, "ops", 1, "Operations per second")
 	flag.StringVar(&promaddr, "prom", ":9696", "Prometheus endpoint")
 	flag.StringVar(&namespace, "namespace", "load-test", "Namespace to operate in")
-	flag.DurationVar(&timeout, "timeout", 30*time.Second, "Timeout for validation")
+	flag.DurationVar(&timeout, "timeout", 30*time.Minute, "Timeout for validation")
 	flag.BoolVar(&verbose, "verbose", false, "Verbose log output")
 
 	flag.Parse()
@@ -77,7 +77,7 @@ func main() {
 	go http.ListenAndServe(promaddr, nil)
 
 	// start ops ticker
-	ticker := time.NewTicker(1 * time.Second / time.Duration(ops))
+	ticker := time.NewTicker(time.Duration(1/ops) * time.Second)
 	defer ticker.Stop()
 
 	log.Printf("Performing %v operations per second", ops)
@@ -93,7 +93,7 @@ func main() {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      rando,
 						Namespace: namespace,
-						Labels:    map[string]string{"app": rando},
+						Labels:    map[string]string{"app": rando, "kubernoisy": "noise"},
 					},
 					Spec: v1.PodSpec{
 						Hostname: "pod",
@@ -113,7 +113,11 @@ func main() {
 
 				// create headless service
 				svc := &v1.Service{
-					ObjectMeta: metav1.ObjectMeta{Name: rando, Namespace: namespace},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      rando,
+						Namespace: namespace,
+						Labels:    map[string]string{"kubernoisy": "noise"},
+					},
 					Spec: v1.ServiceSpec{
 						Ports:     []v1.ServicePort{{Name: "kubernoisy", Port: 1234}},
 						ClusterIP: v1.ClusterIPNone,

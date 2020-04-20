@@ -11,7 +11,7 @@ It produces metrics via Prometheus.
 Usage of ./kubernoisy:
   -namespace string
     	Namespace to operate in (default "load-test")
-  -ops int
+  -ops float
     	Operations per second (default 1)
   -prom string
     	Prometheus endpoint (default ":9696")
