@@ -185,7 +185,18 @@ func main() {
 				}
 			}()
 		case <-sig:
-			log.Printf("Got signal, exiting")
+			log.Printf("Got signal, cleaning up and exiting...")
+			err = kapi.CoreV1().Pods(namespace).DeleteCollection(&metav1.DeleteOptions{}, metav1.ListOptions{LabelSelector: "kubernoisy=noise"})
+			if err != nil {
+				debugf("could not clean up pods %v", err)
+			}
+			sl, err := kapi.CoreV1().Services(namespace).List(metav1.ListOptions{LabelSelector: "kubernoisy=noise"})
+			for _, s := range sl.Items {
+				err = kapi.CoreV1().Services(s.Namespace).Delete(s.Name, &metav1.DeleteOptions{})
+				if err != nil {
+					debugf("could not clean up service %v.%v: %v", s.Name, namespace, err)
+				}
+			}
 			os.Exit(0)
 		}
 	}
